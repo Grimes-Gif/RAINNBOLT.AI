@@ -1,54 +1,25 @@
 import os
 import pandas as pd
-from PIL import Image
-
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-
-class OSV5MDataset(Dataset):
-    def __init__(self, csv_path, image_dir, transform=None, limit=None):
-        self.data = pd.read_csv(csv_path)
-        if limit:
-            self.data = self.data.iloc[:limit]
-        self.image_dir = image_dir
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        row = self.data.iloc[idx]
-        image_path = os.path.join(self.image_dir, row['file_path'])  # assuming there's a 'file_path' column
-        image = Image.open(image_path).convert('RGB')
-
-        if self.transform:
-            image = self.transform(image)
-
-        # Assuming lat/lon labels are in the columns 'latitude', 'longitude'
-        label = torch.tensor([row['latitude'], row['longitude']], dtype=torch.float32)
-        return image, label
+import yaml
+from utils import StreetViewDataLoader
+from utils import load_data
 
 class Trainer:
     def __init__(self, config, device=None):
         self.batch_size = config.batch_size
         self.num_workers = config.num_workers
+        self.lr = config.alpha
+        self.epochs = config.epochs
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.dataset = config.dataset
 
-    def load_data(self, image_root, csv_path, limit=250000):
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-        ])
-        dataset = OSV5MDataset(csv_path, image_root, transform=transform, limit=limit)
-        return DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
-
-    def train(self, model, dataloader, epochs=10, lr=1e-4):
+    def train(self, model, dataloader):
         model.to(self.device)
         criterion = torch.nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        optimizer = torch.optim.Adam(model.parameters(), self.lr)
 
-        for epoch in range(epochs):
+        for epoch in range(self.epochs):
             model.train()
             running_loss = 0.0
 
@@ -64,4 +35,12 @@ class Trainer:
                 running_loss += loss.item()
 
             avg_loss = running_loss / len(dataloader)
-            print(f"Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}")
+            print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.4f}")
+
+
+if __name__ == "__main__":
+    with open("./environment_vars/master.yaml") as f:
+        config = yaml.safe_load(f)
+    trainer = Trainer(config, torch.get_device())
+    dl = trainer.load_data()
+    # trainer.train(model, dl)
