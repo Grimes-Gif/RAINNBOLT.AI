@@ -8,12 +8,13 @@ from torch.utils.data import Dataset, DataLoader, random_split
 
 class StreetViewDataLoader(Dataset):
 
-    def __init__(self, labels_path, images_path, transform=None):
+    def __init__(self, labels_path, images_path, transform=None, device=None):
         super(StreetViewDataLoader, self).__init__()
         self.labels = pd.read_csv(labels_path)
         self.path = Path(images_path)
         self.image_list = sorted(self.path.glob("*.png"), key=lambda f: int(f.stem)) # since indicies are not continuous we read in the dir list
         self.transform = transform
+        self.device = device
 
         assert len(self.image_list) == len(self.labels)
 
@@ -22,10 +23,10 @@ class StreetViewDataLoader(Dataset):
     
     def __getitem__(self, index):
         img_path = self.image_list[index]
-        image = read_image(img_path)
+        image = read_image(img_path).to(device=self.device)
 
         row = self.labels.iloc[index]
-        label = torch.tensor([row["latitude"], row["longitude"]], dtype=torch.float32)
+        label = torch.tensor([row["latitude"], row["longitude"]], dtype=torch.float32, device=self.device)
 
         if self.transform:
             image = self.transform(image)
