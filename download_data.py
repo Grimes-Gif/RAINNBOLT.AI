@@ -13,7 +13,7 @@ def download():
     with open("environment_vars/master.yaml") as f:
         vars = yaml.safe_load(f)
         local_dir = Path(vars["local_dir"])
-        split = vars["split"]
+        split = vars["split_tt"]
         f.close()
 
     api = KaggleApi()
@@ -21,7 +21,7 @@ def download():
 
     local_dir.mkdir(parents=True, exist_ok=True)
 
-    api.dataset_download_files(vars["dataset"], path=local_dir, unzip=True)
+    api.dataset_download_files("ayuseless/streetview-image-dataset", path=local_dir, unzip=True)
 
     # move the labels to root directory
     labels_path = shutil.move(local_dir / "Streetview_Image_Dataset/coordinates.csv",

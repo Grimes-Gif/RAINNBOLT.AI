@@ -1,7 +1,7 @@
 # <--------------> load data script params
 local_dir: "./Data"
-dataset: "ayuseless/streetview-image-dataset"
-split: 0.9
+split_tt: 0.9
+split_tv: 0.8
 seed: 42
 # <-------------->
 
