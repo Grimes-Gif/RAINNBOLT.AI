@@ -8,7 +8,7 @@ from utils import load_data
 from utils import haversine
 
 class Trainer:
-    def __init__(self, network, config, train_loader, val_loader, device=None):
+    def __init__(self, config, train_loader, val_loader, device=None):
         self.batch_size = config.batch_size
         self.num_workers = config.num_workers
         self.lr = config.alpha
@@ -16,7 +16,6 @@ class Trainer:
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.net = network
         self.haversine = haversine
 
         self.train_losses = []
@@ -27,7 +26,7 @@ class Trainer:
         optimizer = torch.optim.Adam(model.parameters(), self.lr)
 
         for epoch in range(self.epochs):
-            self.net.train()
+            model.train()
             running_loss = 0.0
 
             for images, labels in self.train_loader:
@@ -45,7 +44,7 @@ class Trainer:
             val_loss = self.evaluate(loader=self.val_loader, mode='val')
             print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.4f}")
 
-    def evaluate(self, loader=None, mode='val', distance_threshold_km=25):
+    def evaluate(self, loader=None, mode='val', distance_threshold_km=25, model=None):
         """
         Evaluate model performance.
         
@@ -54,7 +53,7 @@ class Trainer:
             mode: 'val' during training, 'test' after training
             distance_threshold_km: threshold to compute precision
         """
-        self.net.eval()
+        model.eval()
         criterion = nn.MSELoss()
         total_loss = 0.0
         total_samples = 0
@@ -67,7 +66,7 @@ class Trainer:
         with torch.no_grad():
             for images, labels in tqdm(loader, desc=f"Evaluating ({mode})"):
                 images, labels = images.to(self.device), labels.to(self.device)
-                outputs = self.model(images)
+                outputs = model(images)
 
                 # Always compute MSE
                 loss = criterion(outputs, labels)
@@ -123,6 +122,8 @@ if __name__ == "__main__":
     test_labels = "./Data/labels/test_labels.csv"
     train_images = "./Data/Streetview_Image_Dataset/train"
     test_images = "./Data/Streetview_Image_Dataset/test"
+    net = None # place model here 
     train, val, test = load_data(config, train_labels, test_labels, train_images, test_images)
-    trainer = Trainer(config, train)
-    # trainer.train(model, dl)
+    trainer = Trainer(config, train, val)
+    trainer.train(net)
+    trainer.evaluate(test, mode="test", model=net)
