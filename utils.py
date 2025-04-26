@@ -3,7 +3,7 @@ from pathlib import Path
 import math
 import random
 import torch
-from torchvision.io import read_image
+from torchvision.io import decode_image
 from torch.utils.data import Dataset, DataLoader, random_split
 
 class StreetViewDataLoader(Dataset):
@@ -23,7 +23,7 @@ class StreetViewDataLoader(Dataset):
     
     def __getitem__(self, index):
         img_path = self.image_list[index]
-        image = read_image(img_path).to(device=self.device)
+        image = decode_image(img_path).to(device=self.device)
 
         row = self.labels.iloc[index]
         label = torch.tensor([row["latitude"], row["longitude"]], dtype=torch.float32, device=self.device)
@@ -53,3 +53,21 @@ def load_data(config, train_labels, test_labels, train_images, test_images):
     val = DataLoader(val_subset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
     test = DataLoader(test_DS, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
     return train, val, test 
+
+
+
+def haversine(preds, targets):
+    lon1, lat1 = preds[:, 0], preds[:, 1]
+    lon2, lat2 = targets[:, 0], targets[:, 1]
+
+    # convert degrees to radians
+    lon1, lat1, lon2, lat2 = map(torch.deg2rad, [lon1, lat1, lon2, lat2])
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = torch.sin(dlat / 2)**2 + torch.cos(lat1) * torch.cos(lat2) * torch.sin(dlon / 2)**2
+    c = 2 * torch.atan2(torch.sqrt(a), torch.sqrt(1 - a))
+
+    R = 6371  # Earth radius in km
+    return R * c

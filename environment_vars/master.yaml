@@ -7,6 +7,7 @@ seed: 42
 
 # hyperparameters
 batch_size: 64
+num_workers: 4
 learning_rate: 0.0001
 epochs: 10
 regularize: "l1" # l2 or l1
