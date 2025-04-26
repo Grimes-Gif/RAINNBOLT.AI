@@ -6,10 +6,10 @@ import torch
 from torchvision.io import decode_image
 from torch.utils.data import Dataset, DataLoader, random_split
 
-class StreetViewDataLoader(Dataset):
+class StreetViewDataset(Dataset):
 
     def __init__(self, labels_path, images_path, transform=None, device=None):
-        super(StreetViewDataLoader, self).__init__()
+        super(StreetViewDataset, self).__init__()
         self.labels = pd.read_csv(labels_path)
         self.path = Path(images_path)
         self.image_list = sorted(self.path.glob("*.png"), key=lambda f: int(f.stem)) # since indicies are not continuous we read in the dir list
@@ -42,8 +42,8 @@ def load_data(config, train_labels, test_labels, train_images, test_images):
     - train_images (str): path to the training images directory
     - test_images (str): path to the testing images directory
     """
-    train_DS = StreetViewDataLoader(train_labels, train_images)
-    test_DS = StreetViewDataLoader(test_labels, test_images)
+    train_DS = StreetViewDataset(train_labels, train_images)
+    test_DS = StreetViewDataset(test_labels, test_images)
 
     train_size = int(config["split_tv"] * len(train_DS))
     val_size = len(train_DS) - train_size
