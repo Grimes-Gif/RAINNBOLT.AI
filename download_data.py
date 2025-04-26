@@ -31,8 +31,9 @@ def download():
     1.) Split into train and test data folders
     2.) Split csv into train and test labels
     """
+    print("making test and train sets...")
     # create train and test data
-    source_dir = Path(local_dir + "/Streetview_Image_Dataset")
+    source_dir = local_dir / "Streetview_Image_Dataset"
     train_dir = source_dir / "train"
     test_dir = source_dir / "test"
 
@@ -57,8 +58,9 @@ def download():
     """
     Get labels for each dataset and write them to new csv
     """
+    print("making test and train labels...")
     labels = pd.read_csv(labels_path)
-    output_dir = Path("./Data/labels")
+    output_dir = Path(local_dir / "labels")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     train_files = os.listdir(local_dir / "Streetview_Image_Dataset/train")
