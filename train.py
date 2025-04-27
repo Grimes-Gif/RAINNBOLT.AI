@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from utils import load_data
 from utils import haversine
-from MyCNN import BasicCNN
+from Models.MyCNN import BasicCNN
 
 class Trainer:
     def __init__(self, config, train_loader, val_loader, device=None, isGeocell=False):
