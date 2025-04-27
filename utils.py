@@ -1,10 +1,10 @@
 import pandas as pd
-from pathlib import Path
-import math
-import random
 import torch
+from pathlib import Path
+from torchvision import transforms
 from torchvision.io import decode_image
 from torch.utils.data import Dataset, DataLoader, random_split
+from PIL import Image
 
 class StreetViewDataset(Dataset):
 
@@ -23,7 +23,8 @@ class StreetViewDataset(Dataset):
     
     def __getitem__(self, index):
         img_path = self.image_list[index]
-        image = decode_image(img_path).to(device=self.device)
+        # decode_image reads in 8 bit integers so we need to convert to float32
+        image = decode_image(img_path).to(device=self.device).to(torch.float32)/255 
 
         row = self.labels.iloc[index]
         label = torch.tensor([row["latitude"], row["longitude"]], dtype=torch.float32, device=self.device)

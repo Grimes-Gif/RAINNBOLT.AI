@@ -1,35 +1,39 @@
 import torch
 import torch.nn as nn
 import yaml
-import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from utils import load_data
 from utils import haversine
+from MyCNN import BasicCNN
 
 class Trainer:
-    def __init__(self, config, train_loader, val_loader, device=None):
-        self.batch_size = config.batch_size
-        self.num_workers = config.num_workers
-        self.lr = config.alpha
-        self.epochs = config.epochs
+    def __init__(self, config, train_loader, val_loader, device=None, isGeocell=False):
+        self.batch_size = config["batch_size"]
+        self.num_workers = config["num_workers"]
+        self.lr = config["learning_rate"]
+        self.epochs = config["epochs"]
+        self.weight_decay = config["weight_decay"]
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.haversine = haversine
+        self.isGeocell = isGeocell
 
         self.train_losses = []
         self.val_losses = []
 
+
     def train(self, model):
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), self.lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
         for epoch in range(self.epochs):
             model.train()
             running_loss = 0.0
 
-            for images, labels in self.train_loader:
+            for images, labels in tqdm(self.train_loader, desc=f"Evaluating train"):
                 optimizer.zero_grad()
                 outputs = model(images)
                 loss = criterion(outputs, labels)
@@ -41,7 +45,7 @@ class Trainer:
             avg_loss = running_loss / len(self.train_loader)
             self.train_losses.append(avg_loss)
 
-            val_loss = self.evaluate(loader=self.val_loader, mode='val')
+            val_loss = self.evaluate(loader=self.val_loader, mode='val', model=model)
             print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.4f}")
 
     def evaluate(self, loader=None, mode='val', distance_threshold_km=25, model=None):
@@ -122,8 +126,8 @@ if __name__ == "__main__":
     test_labels = "./Data/labels/test_labels.csv"
     train_images = "./Data/Streetview_Image_Dataset/train"
     test_images = "./Data/Streetview_Image_Dataset/test"
-    net = None # place model here 
+    net = BasicCNN() # place model here 
     train, val, test = load_data(config, train_labels, test_labels, train_images, test_images)
     trainer = Trainer(config, train, val)
     trainer.train(net)
-    trainer.evaluate(test, mode="test", model=net)
+    #trainer.evaluate(loader=test, mode="test", model=net)
