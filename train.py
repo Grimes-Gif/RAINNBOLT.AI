@@ -3,6 +3,7 @@ import torch.nn as nn
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 from tqdm import tqdm
 from utils import load_data
 from utils import haversine
@@ -116,7 +117,15 @@ class Trainer:
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
+        save_path = os.path.join('figures', 'loss_curve.png')
+        plt.savefig(save_path)
+        plt.close()
+
+    def save_model(self, model, filename="model_weights.pth"):
+        os.makedirs('./checkpoints', exist_ok=True)  # create folder if not exist
+        save_path = os.path.join('checkpoints', filename)
+        torch.save(model.state_dict(), save_path)
+        print(f"Model weights saved to {save_path}")
 
 
 if __name__ == "__main__":
@@ -130,4 +139,4 @@ if __name__ == "__main__":
     train, val, test = load_data(config, train_labels, test_labels, train_images, test_images)
     trainer = Trainer(config, train, val)
     trainer.train(net)
-    #trainer.evaluate(loader=test, mode="test", model=net)
+    trainer.evaluate(loader=test, mode="test", model=net)

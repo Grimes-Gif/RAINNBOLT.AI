@@ -1,10 +1,14 @@
 import pandas as pd
 import torch
+import os
+import matplotlib.pyplot as plt
 from pathlib import Path
 from torchvision import transforms
 from torchvision.io import decode_image
 from torch.utils.data import Dataset, DataLoader, random_split
 from PIL import Image
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 class StreetViewDataset(Dataset):
 
@@ -72,3 +76,56 @@ def haversine(preds, targets):
 
     R = 6371  # Earth radius in km
     return R * c
+
+def generate_gradcam(model, image_path, target_layer, save_dir='figures', device='cuda', output_index=0):
+    """
+    Generates GradCAM visualization for a given image and model.
+
+    Args:
+        model (torch.nn.Module): The model to analyze.
+        image_path (str or Path): Path to input image.
+        target_layer (torch.nn.Module): The layer you want to visualize (must be a Conv2d).
+        save_dir (str): Folder to save the figure.
+        device (str): 'cuda' or 'cpu'.
+        output_index (int): For multi-output models, which output to visualize (default 0).
+    """
+
+    # Setup
+    os.makedirs(save_dir, exist_ok=True)
+    model.to(device)
+    model.eval()
+
+    # Load and preprocess image
+    transform = transforms.Compose([
+        transforms.Resize((600, 600)),
+        transforms.ToTensor()
+    ])
+    image = decode_image(str(image_path)).to(device)  # [C,H,W] uint8
+    image = image.float() / 255.0  # Normalize to [0,1]
+    input_tensor = transform(image).unsqueeze(0)  # [1,C,H,W]
+
+    # Initialize GradCAM
+    cam = GradCAM(model=model, target_layers=[target_layer], use_cuda=(device=='cuda'))
+
+    # Generate GradCAM
+    grayscale_cam = cam(input_tensor=input_tensor, targets=None)[0, :]  # remove batch dimension
+
+    # Convert input image for visualization
+    input_numpy = input_tensor.squeeze(0).permute(1,2,0).cpu().numpy()  # [H,W,C]
+    input_numpy = (input_numpy - input_numpy.min()) / (input_numpy.max() - input_numpy.min())
+
+    # Overlay GradCAM on input
+    visualization = show_cam_on_image(input_numpy, grayscale_cam, use_rgb=True)
+
+    # Plot and save
+    filename = os.path.basename(image_path)
+    save_path = os.path.join(save_dir, f"gradcam_{filename}")
+
+    plt.figure(figsize=(8,8))
+    plt.imshow(visualization)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
+    print(f"GradCAM saved to {save_path}")
