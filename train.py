@@ -8,6 +8,7 @@ from tqdm import tqdm
 from utils import load_data
 from utils import haversine
 from Models.MyCNN import BasicCNN
+from preprocessing.BayesGeocell import GeocellPartitioner
 
 class Trainer:
     def __init__(self, config, train_loader, val_loader, device=None, isGeocell=False):
@@ -22,13 +23,23 @@ class Trainer:
         self.haversine = haversine
         self.isGeocell = isGeocell
 
+        if self.isGeocell:
+            # Load raw lat-lon labels here
+            lat_lon_train = np.load('lat_lon_train.npy')  # You should prepare this
+            self.partitioner = GeocellPartitioner()
+            self.partitioner.fit(lat_lon_train)
+
         self.train_losses = []
         self.val_losses = []
 
 
     def train(self, model):
-        criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        if self.isGeocell:
+            criterion = nn.CrossEntropyLoss()
+        else:
+            criterion = nn.MSELoss()
 
         for epoch in range(self.epochs):
             model.train()
@@ -36,8 +47,17 @@ class Trainer:
 
             for images, labels in tqdm(self.train_loader, desc=f"Evaluating train"):
                 optimizer.zero_grad()
-                outputs = model(images)
-                loss = criterion(outputs, labels)
+                if self.isGeocell:
+                    # Map lat-lon labels to geocell class
+                    lat, lon = labels[:, 0], labels[:, 1]
+                    cell_ids = torch.tensor([self.partitioner.assign_cell(lat[i].item(), lon[i].item()) for i in range(len(lat))])
+                    outputs = model(images)
+                    loss = criterion(outputs, cell_ids.to(self.device))
+                else:
+                    outputs = model(images)
+                    loss = criterion(outputs, labels)
+                    
+
                 loss.backward()
                 optimizer.step()
 
@@ -71,11 +91,20 @@ class Trainer:
         with torch.no_grad():
             for images, labels in tqdm(loader, desc=f"Evaluating ({mode})"):
                 images, labels = images.to(self.device), labels.to(self.device)
-                outputs = model(images)
 
-                # Always compute MSE
-                loss = criterion(outputs, labels)
-                total_loss += loss.item()
+                if self.isGeocell:
+                    outputs = model(images)
+                    pred_classes = outputs.argmax(dim=1)
+
+                    # Get predicted (lat, lon) from geocell centers
+                    pred_lat_lon = torch.tensor([self.partitioner.center_of_cell(cid.item()) for cid in pred_classes])
+                    loss = criterion(outputs, torch.tensor([self.partitioner.assign_cell(lat.item(), lon.item()) for lat, lon in labels]))
+                else:
+                    outputs = model(images)
+
+                    # Always compute MSE
+                    loss = criterion(outputs, labels)
+                    total_loss += loss.item()
 
                 if mode == 'test':
                     dist = self.haversine(outputs, labels)

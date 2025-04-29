@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import os
 import matplotlib.pyplot as plt
+import numpy as np
 from pathlib import Path
 from torchvision import transforms
 from torchvision.io import decode_image
@@ -129,3 +130,46 @@ def generate_gradcam(model, image_path, target_layer, save_dir='figures', device
     plt.close()
 
     print(f"GradCAM saved to {save_path}")
+
+def plot_geocell_distribution(partitioner, labels, save_path):
+    """
+    partitioner: your GeocellPartitioner object
+    labels: numpy array of shape (N, 2) with (lat, lon) for each image
+    """
+
+    # Step 1: Assign each image to a geocell ID
+    cell_ids = np.array([
+        partitioner.assign_cell(lat, lon) for lat, lon in labels
+    ])
+
+    # Step 2: Count number of images per geocell
+    unique_ids, counts = np.unique(cell_ids, return_counts=True)
+
+    # Step 3: Get center of each geocell
+    centers = np.array([
+        partitioner.center_of_cell(cell_id) for cell_id in unique_ids
+    ])
+
+    latitudes = centers[:, 0]
+    longitudes = centers[:, 1]
+
+    # Step 4: Scatter plot
+    plt.figure(figsize=(14, 7))
+    sc = plt.scatter(
+        longitudes, latitudes,
+        c=counts,         # Color by count
+        s=counts,         # Size by count (may scale it if needed)
+        cmap='viridis',   # Color map
+        alpha=0.75,
+        edgecolors='k'
+    )
+    plt.colorbar(sc, label="Image Count")
+    plt.title("Geocell Distribution by Image Count")
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    plt.grid(True)
+    plt.xlim([-180, 180])
+    plt.ylim([-90, 90])
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
