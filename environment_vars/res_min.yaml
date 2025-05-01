@@ -1,0 +1,19 @@
+local_dir: "./Data"
+split_tt: 0.9
+split_tv: 0.8
+seed: 42
+# <-------------->
+
+# hyperparameters
+batch_size: 64
+num_workers: 4
+alpha: 0.001
+epochs: 12
+c_beta: .1
+g_beta: .5
+r_beta: .4
+dropout: .2
+particular_geocells: 3988
+coarse_geocells: 300
+weight_decay: 0.001
+is_geocelled: True
